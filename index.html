@@ -8,438 +8,223 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
-        /* Custom animations and styles */
+        /* Animation & Styles */
         .fade-in { animation: fadeIn 0.5s ease-in; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
         
         .product-card { transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
         .product-card:hover { transform: translateY(-8px); box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1); }
         
-        .skeleton { background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%); background-size: 200% 100%; animation: loading 1.5s infinite; }
-        @keyframes loading { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
-        
         .price-tag { background: linear-gradient(135deg, #10b981 0%, #059669 100%); }
-        
-        /* Custom scrollbar */
-        ::-webkit-scrollbar { width: 8px; }
-        ::-webkit-scrollbar-track { background: #f1f1f1; border-radius: 10px; }
-        ::-webkit-scrollbar-thumb { background: #c1c1c1; border-radius: 10px; }
-        ::-webkit-scrollbar-thumb:hover { background: #a1a1a1; }
     </style>
 </head>
-<body class="bg-gradient-to-br from-gray-50 to-gray-100 min-h-screen font-sans">
+<body class="bg-gray-50 min-h-screen font-sans">
 
-    <!-- Header -->
-    <header class="bg-white/90 backdrop-blur-sm shadow-sm sticky top-0 z-50 p-4 border-b border-gray-100">
-        <div class="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-4">
-            <div class="flex items-center gap-3">
-                <div class="w-10 h-10 bg-gradient-to-br from-green-500 to-emerald-600 rounded-xl flex items-center justify-center">
-                    <i class="fas fa-store text-white"></i>
-                </div>
-                <div>
-                    <h1 class="text-2xl font-black text-gray-800">Simple Market</h1>
-                    <p class="text-xs text-gray-500">Buy & Sell Anything</p>
-                </div>
+    <header class="bg-white shadow-sm sticky top-0 z-50 p-4">
+        <div class="max-w-6xl mx-auto flex flex-col md:flex-row justify-between items-center gap-4">
+            <div class="flex items-center gap-2">
+                <i class="fas fa-store text-green-600 text-2xl"></i>
+                <h1 class="text-2xl font-black text-gray-800 tracking-tight">Simple Market</h1>
             </div>
             
-            <div class="flex items-center gap-3">
-                <div class="relative hidden md:block">
+            <div class="flex items-center gap-3 w-full md:w-auto">
+                <div class="relative w-full md:w-80">
                     <input type="text" id="searchInput" onkeyup="filterItems()" placeholder="Search items..." 
-                           class="pl-10 pr-4 py-2.5 w-64 rounded-full border border-gray-200 focus:border-green-400 focus:ring-2 focus:ring-green-100 outline-none transition-all">
-                    <i class="fas fa-search absolute left-3.5 top-3 text-gray-400"></i>
+                           class="w-full pl-10 pr-4 py-3 rounded-full border border-gray-200 bg-white text-gray-900 focus:border-green-500 focus:ring-2 focus:ring-green-100 outline-none shadow-sm">
+                    <i class="fas fa-search absolute left-4 top-3.5 text-gray-400"></i>
                 </div>
                 
-                <button onclick="toggleModal()" class="bg-gradient-to-r from-gray-900 to-black text-white px-6 py-3 rounded-full font-bold flex items-center gap-2 hover:shadow-lg transition-all hover:scale-105 active:scale-95">
-                    <i class="fas fa-plus"></i> Sell Item
+                <button onclick="toggleModal()" class="whitespace-nowrap bg-black text-white px-6 py-3 rounded-full font-bold flex items-center gap-2 hover:bg-gray-800 transition shadow-lg">
+                    <i class="fas fa-camera"></i> Sell
                 </button>
             </div>
         </div>
     </header>
 
-    <!-- Mobile Search -->
-    <section class="p-4 max-w-7xl mx-auto md:hidden">
-        <div class="relative">
-            <input type="text" id="searchInputMobile" onkeyup="filterItems()" placeholder="Search items..." 
-                   class="w-full p-4 pl-12 rounded-2xl border border-gray-200 focus:border-green-400 focus:ring-2 focus:ring-green-100 outline-none shadow-sm">
-            <i class="fas fa-search absolute left-4 top-4 text-gray-400"></i>
-        </div>
-    </section>
-
-    <!-- Filter/Sort Bar -->
-    <div class="max-w-7xl mx-auto px-4 py-3">
-        <div class="flex flex-wrap items-center justify-between gap-3">
-            <div class="text-sm text-gray-600">
-                <span id="itemCount">Loading...</span> items available
-            </div>
-            <div class="flex items-center gap-2">
-                <select id="sortSelect" onchange="sortProducts()" class="text-sm bg-white border border-gray-200 rounded-lg px-3 py-2 outline-none focus:border-green-400">
-                    <option value="newest">Newest First</option>
-                    <option value="price_low">Price: Low to High</option>
-                    <option value="price_high">Price: High to Low</option>
-                    <option value="name">Name: A-Z</option>
-                </select>
-                <button id="filterBtn" onclick="toggleFilter()" class="text-sm bg-white border border-gray-200 rounded-lg px-4 py-2 flex items-center gap-2 hover:bg-gray-50">
-                    <i class="fas fa-filter text-gray-500"></i> Filter
-                </button>
-            </div>
-        </div>
+    <div class="max-w-6xl mx-auto px-4 py-4">
+        <p class="text-gray-500 text-sm"><span id="itemCount" class="font-bold text-gray-800">0</span> items for sale nearby</p>
     </div>
 
-    <!-- Products Grid -->
-    <main id="productGrid" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6 p-4 max-w-7xl mx-auto">
-        <!-- Skeleton Loading -->
-        <div class="skeleton rounded-2xl h-80"></div>
-        <div class="skeleton rounded-2xl h-80 hidden sm:block"></div>
-        <div class="skeleton rounded-2xl h-80 hidden md:block"></div>
-        <div class="skeleton rounded-2xl h-80 hidden lg:block"></div>
+    <main id="productGrid" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6 p-4 max-w-6xl mx-auto">
+        <div class="bg-gray-200 h-80 rounded-2xl animate-pulse"></div>
+        <div class="bg-gray-200 h-80 rounded-2xl animate-pulse hidden sm:block"></div>
     </main>
 
-    <!-- Empty State -->
-    <div id="emptyState" class="hidden max-w-7xl mx-auto px-4 py-16 text-center">
-        <div class="w-24 h-24 mx-auto mb-6 bg-gray-100 rounded-full flex items-center justify-center">
-            <i class="fas fa-box-open text-4xl text-gray-400"></i>
-        </div>
-        <h3 class="text-xl font-bold text-gray-700 mb-2">No items found</h3>
-        <p class="text-gray-500 mb-6">Try changing your search or be the first to post an item!</p>
-        <button onclick="toggleModal()" class="bg-gradient-to-r from-green-500 to-emerald-600 text-white px-6 py-3 rounded-full font-bold inline-flex items-center gap-2 hover:shadow-lg transition-all">
-            <i class="fas fa-plus"></i> Sell Your First Item
-        </button>
-    </div>
-
-    <!-- Sell Modal -->
-    <div id="sellModal" class="hidden fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50 transition-opacity">
-        <div class="bg-white rounded-3xl p-6 md:p-8 w-full max-w-md shadow-2xl transform transition-all duration-300 scale-95 opacity-0" id="modalContent">
-            <div class="flex justify-between items-center mb-6">
-                <div>
-                    <h2 class="text-2xl font-bold text-gray-800">Post New Item</h2>
-                    <p class="text-gray-500 text-sm mt-1">Reach thousands of buyers instantly</p>
-                </div>
-                <button onclick="toggleModal()" class="w-10 h-10 rounded-full bg-gray-100 hover:bg-gray-200 flex items-center justify-center transition-colors">
-                    <i class="fas fa-times text-gray-600"></i>
-                </button>
-            </div>
+    <div id="sellModal" class="hidden fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+        <div class="bg-white rounded-3xl p-6 w-full max-w-md shadow-2xl relative animate-[fadeIn_0.3s_ease-out]">
+            <button onclick="toggleModal()" class="absolute top-4 right-4 w-8 h-8 rounded-full bg-gray-100 hover:bg-gray-200 flex items-center justify-center">
+                <i class="fas fa-times"></i>
+            </button>
+            
+            <h2 class="text-2xl font-black text-gray-900 mb-1">Sell an Item</h2>
+            <p class="text-gray-500 text-sm mb-6">Upload a photo and details.</p>
             
             <form id="sellForm" class="space-y-4">
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Product Name *</label>
-                    <input type="text" id="pName" placeholder="e.g. iPhone 13 Pro Max" 
-                           class="w-full p-4 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:border-green-400 focus:ring-2 focus:ring-green-100 transition-all" required>
+                <input type="text" id="pName" placeholder="Product Name (e.g. iPhone 12)" class="w-full p-4 bg-gray-50 border rounded-xl outline-none focus:border-green-500" required>
+                
+                <div class="grid grid-cols-2 gap-3">
+                    <input type="text" id="pPrice" placeholder="Price" class="w-full p-4 bg-gray-50 border rounded-xl outline-none focus:border-green-500" required>
+                    <input type="text" id="pPhone" placeholder="Phone No." class="w-full p-4 bg-gray-50 border rounded-xl outline-none focus:border-green-500" required>
                 </div>
                 
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Price *</label>
-                    <div class="relative">
-                        <div class="absolute left-4 top-4 text-gray-500">$</div>
-                        <input type="text" id="pPrice" placeholder="50.00" 
-                               class="w-full p-4 pl-10 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:border-green-400 focus:ring-2 focus:ring-green-100 transition-all" required>
+                <div class="border-2 border-dashed border-gray-300 p-6 rounded-xl text-center cursor-pointer hover:bg-gray-50 relative group">
+                    <input type="file" id="pContextMenu" accept="image/*" class="absolute inset-0 opacity-0 cursor-pointer z-10" onchange="previewImage(this)" required>
+                    <div id="uploadText" class="text-gray-400 group-hover:text-green-600 transition">
+                        <i class="fas fa-cloud-upload-alt text-3xl mb-2"></i>
+                        <p class="text-sm font-bold">Tap to Upload Photo</p>
                     </div>
                 </div>
                 
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">WhatsApp Number *</label>
-                    <div class="relative">
-                        <div class="absolute left-4 top-4 text-gray-500">
-                            <i class="fab fa-whatsapp text-green-500"></i>
-                        </div>
-                        <input type="text" id="pPhone" placeholder="1234567890" 
-                               class="w-full p-4 pl-12 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:border-green-400 focus:ring-2 focus:ring-green-100 transition-all" required>
-                    </div>
-                </div>
-                
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Image URL</label>
-                    <input type="text" id="pImg" placeholder="https://example.com/image.jpg" 
-                           class="w-full p-4 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:border-green-400 focus:ring-2 focus:ring-green-100 transition-all">
-                    <p class="text-xs text-gray-500 mt-1">Leave empty for default image</p>
-                </div>
-                
-                <div class="pt-2">
-                    <button type="submit" id="submitBtn" class="w-full bg-gradient-to-r from-green-500 to-emerald-600 text-white font-bold py-4 rounded-2xl flex items-center justify-center gap-2 hover:shadow-lg transition-all hover:scale-[1.02] active:scale-[0.98]">
-                        <i class="fas fa-paper-plane"></i> POST NOW
-                    </button>
-                    <p class="text-center text-xs text-gray-500 mt-3">Your item will be visible to all users immediately</p>
-                </div>
+                <button type="submit" id="submitBtn" class="w-full bg-green-600 text-white font-bold py-4 rounded-xl shadow-lg hover:bg-green-700 transition transform active:scale-95">
+                    POST ITEM
+                </button>
             </form>
         </div>
     </div>
 
-    <!-- Toast Notification -->
-    <div id="toast" class="hidden fixed bottom-6 right-6 bg-gray-900 text-white px-6 py-4 rounded-xl shadow-xl z-50 max-w-sm transform translate-y-10 opacity-0 transition-all duration-300">
-        <div class="flex items-center gap-3">
-            <div id="toastIcon" class="w-8 h-8 rounded-full flex items-center justify-center">
-                <i id="toastIconClass" class="fas fa-check"></i>
-            </div>
-            <div>
-                <p id="toastMessage" class="font-medium">Success!</p>
-                <p id="toastSubtitle" class="text-sm text-gray-300">Your item has been posted</p>
-            </div>
+    <div id="toast" class="hidden fixed bottom-5 right-5 bg-black text-white px-6 py-4 rounded-xl shadow-2xl flex items-center gap-3 z-50">
+        <i class="fas fa-check-circle text-green-400 text-xl"></i>
+        <div>
+            <p class="font-bold">Success!</p>
+            <p class="text-xs text-gray-400">Item is now live.</p>
         </div>
     </div>
 
     <script>
-        // Supabase Configuration
+        // --- SETUP ---
         const SUPABASE_URL = 'https://tuzkeogfbgwabfhmxiba.supabase.co';
         const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InR1emtlb2dmYmd3YWJmaG14aWJhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njg2NTc5NzcsImV4cCI6MjA4NDIzMzk3N30.nAMljfHjir0POHLP-f2NanhgmmXGPSH741NPrU5JxgY';
         const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-        
+
+        // --- DEMO DATA (This makes the site look active!) ---
+        const DEMO_PRODUCTS = [
+            { name: "Toyota Corolla 2018", price: "$12,000", phone: "123", image_url: "https://images.unsplash.com/photo-1552519507-da3b142c6e3d?auto=format&fit=crop&w=500&q=80" },
+            { name: "Nike Air Jordan", price: "$150", phone: "123", image_url: "https://images.unsplash.com/photo-1542291026-7eec264c27ff?auto=format&fit=crop&w=500&q=80" },
+            { name: "Apple MacBook Pro", price: "$900", phone: "123", image_url: "https://images.unsplash.com/photo-1517336714731-489689fd1ca4?auto=format&fit=crop&w=500&q=80" },
+            { name: "Leather Watch", price: "$85", phone: "123", image_url: "https://images.unsplash.com/photo-1524592094714-0f0654e20314?auto=format&fit=crop&w=500&q=80" }
+        ];
+
         let allProducts = [];
-        let currentSort = 'newest';
 
-        // Format price with currency
-        function formatPrice(price) {
-            if (!price) return '$0';
-            const num = price.replace(/[^0-9.]/g, '');
-            return `$${parseFloat(num).toFixed(2)}`;
-        }
-
-        // Show toast notification
-        function showToast(message, subtitle = '', type = 'success') {
-            const toast = document.getElementById('toast');
-            const icon = document.getElementById('toastIcon');
-            const iconClass = document.getElementById('toastIconClass');
-            const toastMessage = document.getElementById('toastMessage');
-            const toastSubtitle = document.getElementById('toastSubtitle');
-            
-            // Set type
-            if (type === 'error') {
-                icon.className = 'w-8 h-8 rounded-full flex items-center justify-center bg-red-500';
-                iconClass.className = 'fas fa-exclamation-circle';
-            } else if (type === 'warning') {
-                icon.className = 'w-8 h-8 rounded-full flex items-center justify-center bg-yellow-500';
-                iconClass.className = 'fas fa-exclamation-triangle';
-            } else {
-                icon.className = 'w-8 h-8 rounded-full flex items-center justify-center bg-green-500';
-                iconClass.className = 'fas fa-check';
-            }
-            
-            toastMessage.textContent = message;
-            toastSubtitle.textContent = subtitle;
-            
-            toast.classList.remove('hidden', 'opacity-0', 'translate-y-10');
-            toast.classList.add('opacity-100', 'translate-y-0');
-            
-            setTimeout(() => {
-                toast.classList.remove('opacity-100', 'translate-y-0');
-                toast.classList.add('opacity-0', 'translate-y-10');
-                setTimeout(() => toast.classList.add('hidden'), 300);
-            }, 3000);
-        }
-
-        // Fetch products with loading state
         async function loadProducts() {
             try {
-                const { data, error } = await supabase
-                    .from('products')
-                    .select('*')
-                    .order('created_at', { ascending: false });
-                    
-                if (error) throw error;
+                // 1. Try to get real products
+                const { data, error } = await supabase.from('products').select('*').order('created_at', { ascending: false });
                 
-                allProducts = data || [];
-                renderProducts();
-                updateItemCount();
-            } catch (error) {
-                console.error('Error loading products:', error);
-                showToast('Failed to load products', 'Please try again', 'error');
+                if (error) throw error;
+
+                // 2. If database is empty, use DEMO DATA
+                if (!data || data.length === 0) {
+                    allProducts = DEMO_PRODUCTS;
+                    document.getElementById('itemCount').innerText = "4 (Demo)";
+                } else {
+                    allProducts = data;
+                    document.getElementById('itemCount').innerText = data.length;
+                }
+
+                renderGrid();
+
+            } catch (err) {
+                console.log("Using demo data due to error or empty db");
+                allProducts = DEMO_PRODUCTS;
+                renderGrid();
             }
         }
 
-        // Render products to grid
-        function renderProducts(products = allProducts) {
+        function renderGrid() {
             const grid = document.getElementById('productGrid');
-            const emptyState = document.getElementById('emptyState');
-            
-            if (products.length === 0) {
-                grid.classList.add('hidden');
-                emptyState.classList.remove('hidden');
-                return;
-            }
-            
-            grid.classList.remove('hidden');
-            emptyState.classList.add('hidden');
-            
-            // Sort products based on current selection
-            let sortedProducts = [...products];
-            if (currentSort === 'price_low') {
-                sortedProducts.sort((a, b) => {
-                    const priceA = parseFloat(a.price?.replace(/[^0-9.]/g, '') || 0);
-                    const priceB = parseFloat(b.price?.replace(/[^0-9.]/g, '') || 0);
-                    return priceA - priceB;
-                });
-            } else if (currentSort === 'price_high') {
-                sortedProducts.sort((a, b) => {
-                    const priceA = parseFloat(a.price?.replace(/[^0-9.]/g, '') || 0);
-                    const priceB = parseFloat(b.price?.replace(/[^0-9.]/g, '') || 0);
-                    return priceB - priceA;
-                });
-            } else if (currentSort === 'name') {
-                sortedProducts.sort((a, b) => a.name?.localeCompare(b.name));
-            }
-            
-            grid.innerHTML = sortedProducts.map((item, index) => `
-                <div class="product-card bg-white rounded-2xl overflow-hidden shadow-md border border-gray-100 item-card fade-in" style="animation-delay: ${index * 0.05}s">
-                    <div class="relative">
-                        <img src="${item.image_url || 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?ixlib=rb-4.0.3&auto=format&fit=crop&w=600&q=80'}" 
-                             alt="${item.name}" 
-                             class="w-full h-48 object-cover hover:scale-105 transition-transform duration-300">
-                        <div class="absolute top-3 right-3">
-                            <span class="price-tag text-white text-sm font-bold px-3 py-1 rounded-full shadow-sm">
-                                ${formatPrice(item.price)}
-                            </span>
+            grid.innerHTML = allProducts.map((item, i) => `
+                <div class="product-card bg-white rounded-2xl overflow-hidden border border-gray-100 flex flex-col h-full fade-in" style="animation-delay: ${i * 0.1}s">
+                    <div class="h-48 overflow-hidden relative bg-gray-100">
+                        <img src="${item.image_url}" class="w-full h-full object-cover">
+                        <div class="absolute top-3 right-3 shadow-md">
+                            <span class="price-tag text-white text-sm font-bold px-3 py-1 rounded-full">${item.price}</span>
                         </div>
                     </div>
-                    <div class="p-4">
-                        <h3 class="font-bold text-gray-800 truncate mb-2" title="${item.name}">${item.name}</h3>
-                        <div class="flex items-center justify-between mt-4">
-                            <a href="https://wa.me/${item.phone}" target="_blank" 
-                               class="flex-1 bg-gradient-to-r from-green-500 to-emerald-600 text-white text-center py-2.5 rounded-lg font-bold text-sm flex items-center justify-center gap-2 hover:shadow-md transition-all">
-                                <i class="fab fa-whatsapp"></i> Contact Seller
-                            </a>
-                            <button onclick="copyPhone('${item.phone}')" class="ml-2 w-10 h-10 bg-gray-100 rounded-lg flex items-center justify-center hover:bg-gray-200 transition-colors" title="Copy number">
-                                <i class="fas fa-copy text-gray-600"></i>
-                            </button>
-                        </div>
-                        <p class="text-xs text-gray-500 mt-3 text-center">Posted ${formatDate(item.created_at)}</p>
+                    <div class="p-4 flex flex-col flex-grow">
+                        <h3 class="font-bold text-gray-800 text-lg mb-1 truncate">${item.name}</h3>
+                        <p class="text-xs text-gray-400 mb-4">Posted recently</p>
+                        
+                        <a href="https://wa.me/${item.phone}" target="_blank" class="mt-auto w-full bg-green-50 text-green-600 font-bold py-3 rounded-xl flex items-center justify-center gap-2 hover:bg-green-100 transition">
+                            <i class="fab fa-whatsapp text-xl"></i> Chat Seller
+                        </a>
                     </div>
                 </div>
             `).join('');
         }
 
-        // Format date
-        function formatDate(dateString) {
-            if (!dateString) return 'recently';
-            const date = new Date(dateString);
-            const now = new Date();
-            const diffMs = now - date;
-            const diffMins = Math.floor(diffMs / 60000);
-            const diffHours = Math.floor(diffMs / 3600000);
-            const diffDays = Math.floor(diffMs / 86400000);
-            
-            if (diffMins < 60) return `${diffMins}m ago`;
-            if (diffHours < 24) return `${diffHours}h ago`;
-            if (diffDays < 7) return `${diffDays}d ago`;
-            return date.toLocaleDateString();
-        }
-
-        // Update item count
-        function updateItemCount() {
-            const countElement = document.getElementById('itemCount');
-            const visibleItems = document.querySelectorAll('.item-card:not([style*="display: none"])').length;
-            countElement.textContent = `${visibleItems} of ${allProducts.length}`;
-        }
-
-        // Filter items
-        function filterItems() {
-            const input = document.getElementById('searchInput')?.value.toLowerCase() || 
-                         document.getElementById('searchInputMobile')?.value.toLowerCase();
-            const cards = document.getElementsByClassName('item-card');
-            let visibleCount = 0;
-            
-            for (let card of cards) {
-                const text = card.innerText.toLowerCase();
-                const isVisible = text.includes(input);
-                card.style.display = isVisible ? "" : "none";
-                if (isVisible) visibleCount++;
-            }
-            
-            updateItemCount();
-        }
-
-        // Sort products
-        function sortProducts() {
-            const select = document.getElementById('sortSelect');
-            currentSort = select.value;
-            renderProducts();
-        }
-
-        // Copy phone number
-        function copyPhone(phone) {
-            navigator.clipboard.writeText(phone).then(() => {
-                showToast('Phone number copied!', 'Ready to paste', 'success');
-            });
-        }
-
-        // Toggle modal with animation
-        function toggleModal() {
-            const modal = document.getElementById('sellModal');
-            const modalContent = document.getElementById('modalContent');
-            
-            if (modal.classList.contains('hidden')) {
-                modal.classList.remove('hidden');
-                setTimeout(() => {
-                    modalContent.classList.remove('scale-95', 'opacity-0');
-                    modalContent.classList.add('scale-100', 'opacity-100');
-                }, 10);
-            } else {
-                modalContent.classList.remove('scale-100', 'opacity-100');
-                modalContent.classList.add('scale-95', 'opacity-0');
-                setTimeout(() => {
-                    modal.classList.add('hidden');
-                    document.getElementById('sellForm').reset();
-                }, 300);
+        // --- UPLOAD & SELL LOGIC ---
+        function previewImage(input) {
+            if (input.files[0]) {
+                document.getElementById('uploadText').innerHTML = `
+                    <i class="fas fa-check-circle text-green-500 text-3xl mb-2"></i>
+                    <p class="text-green-600 font-bold">${input.files[0].name}</p>
+                `;
             }
         }
 
-        // Submit form
         document.getElementById('sellForm').onsubmit = async (e) => {
             e.preventDefault();
             const btn = document.getElementById('submitBtn');
             const originalText = btn.innerHTML;
-            
-            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> POSTING...';
+            btn.innerHTML = '<i class="fas fa-circle-notch fa-spin"></i> UPLOADING...';
             btn.disabled = true;
-            
-            const newItem = {
-                name: document.getElementById('pName').value.trim(),
-                price: formatPrice(document.getElementById('pPrice').value),
-                phone: document.getElementById('pPhone').value.trim().replace(/\D/g, ''),
-                image_url: document.getElementById('pImg').value.trim() || null,
-                created_at: new Date().toISOString()
-            };
-            
+
             try {
-                const { error } = await supabase.from('products').insert([newItem]);
+                const file = document.getElementById('pContextMenu').files[0];
+                if (!file) throw new Error("Please pick a photo!");
+
+                // A. Upload Image
+                const fileName = `${Date.now()}-${file.name.replace(/[^a-zA-Z0-9.]/g, '')}`;
+                const { error: uploadError } = await supabase.storage.from('product-images').upload(fileName, file);
+                if (uploadError) throw uploadError;
+
+                // B. Get Link
+                const { data: urlData } = supabase.storage.from('product-images').getPublicUrl(fileName);
+
+                // C. Save Product
+                const newItem = {
+                    name: document.getElementById('pName').value,
+                    price: document.getElementById('pPrice').value,
+                    phone: document.getElementById('pPhone').value,
+                    image_url: urlData.publicUrl,
+                    created_at: new Date().toISOString()
+                };
+
+                const { error: dbError } = await supabase.from('products').insert([newItem]);
+                if (dbError) throw dbError;
+
+                // Success UI
+                document.getElementById('sellModal').classList.add('hidden');
+                document.getElementById('toast').classList.remove('hidden');
+                setTimeout(() => document.getElementById('toast').classList.add('hidden'), 3000);
                 
-                if (error) throw error;
-                
-                showToast('Item posted successfully!', 'Visible to all buyers', 'success');
-                toggleModal();
-                
-                // Refresh products after a short delay
-                setTimeout(() => {
-                    loadProducts();
-                }, 500);
-                
-            } catch (error) {
-                console.error('Error posting item:', error);
-                showToast('Failed to post item', error.message, 'error');
+                // Reload to show new item (Real data takes priority now)
+                loadProducts(); 
+                document.getElementById('sellForm').reset();
+
+            } catch (err) {
+                alert("Error: " + err.message);
             } finally {
                 btn.innerHTML = originalText;
                 btn.disabled = false;
             }
         };
 
-        // Toggle filter (placeholder for future expansion)
-        function toggleFilter() {
-            showToast('Filter feature coming soon!', 'Stay tuned for updates', 'warning');
+        // UI Helpers
+        function toggleModal() {
+            document.getElementById('sellModal').classList.toggle('hidden');
         }
 
-        // Initialize
-        document.addEventListener('DOMContentLoaded', () => {
-            loadProducts();
-            
-            // Close modal on ESC key
-            document.addEventListener('keydown', (e) => {
-                if (e.key === 'Escape' && !document.getElementById('sellModal').classList.contains('hidden')) {
-                    toggleModal();
-                }
-            });
-            
-            // Close modal on outside click
-            document.getElementById('sellModal').addEventListener('click', (e) => {
-                if (e.target.id === 'sellModal') toggleModal();
-            });
-        });
+        function filterItems() {
+            const input = document.getElementById('searchInput').value.toLowerCase();
+            const cards = document.getElementsByClassName('product-card');
+            for (let card of cards) {
+                card.style.display = card.innerText.toLowerCase().includes(input) ? "flex" : "none";
+            }
+        }
+
+        loadProducts();
     </script>
 </body>
 </html>
