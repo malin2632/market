@@ -3,228 +3,775 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Simple Market | Buy & Sell</title>
+    <title>SimpleMart | Online Marketplace</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
-        /* Animation & Styles */
-        .fade-in { animation: fadeIn 0.5s ease-in; }
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        /* Custom Styles */
+        .category-card { transition: all 0.3s ease; }
+        .category-card:hover { transform: translateY(-5px); }
         
         .product-card { transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
         .product-card:hover { transform: translateY(-8px); box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1); }
         
-        .price-tag { background: linear-gradient(135deg, #10b981 0%, #059669 100%); }
+        .hero-gradient { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
+        
+        .skeleton { background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%); background-size: 200% 100%; animation: loading 1.5s infinite; }
+        @keyframes loading { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+        
+        .discount-badge { background: linear-gradient(135deg, #f56565 0%, #c53030 100%); }
+        
+        /* Custom scrollbar */
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: #f1f1f1; }
+        ::-webkit-scrollbar-thumb { background: #c1c1c1; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #a1a1a1; }
+        
+        .dropdown-menu { opacity: 0; visibility: hidden; transform: translateY(-10px); transition: all 0.3s ease; }
+        .dropdown:hover .dropdown-menu { opacity: 1; visibility: visible; transform: translateY(0); }
     </style>
 </head>
-<body class="bg-gray-50 min-h-screen font-sans">
+<body class="bg-gray-50 font-sans">
 
-    <header class="bg-white shadow-sm sticky top-0 z-50 p-4">
-        <div class="max-w-6xl mx-auto flex flex-col md:flex-row justify-between items-center gap-4">
-            <div class="flex items-center gap-2">
-                <i class="fas fa-store text-green-600 text-2xl"></i>
-                <h1 class="text-2xl font-black text-gray-800 tracking-tight">Simple Market</h1>
-            </div>
-            
-            <div class="flex items-center gap-3 w-full md:w-auto">
-                <div class="relative w-full md:w-80">
-                    <input type="text" id="searchInput" onkeyup="filterItems()" placeholder="Search items..." 
-                           class="w-full pl-10 pr-4 py-3 rounded-full border border-gray-200 bg-white text-gray-900 focus:border-green-500 focus:ring-2 focus:ring-green-100 outline-none shadow-sm">
-                    <i class="fas fa-search absolute left-4 top-3.5 text-gray-400"></i>
+    <!-- Top Announcement Bar -->
+    <div class="bg-gradient-to-r from-blue-600 to-purple-600 text-white text-center py-2 px-4 text-sm">
+        🎉 Free delivery on orders above $50! Shop now
+    </div>
+
+    <!-- Header -->
+    <header class="bg-white shadow-sm sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto px-4 py-4">
+            <div class="flex flex-col md:flex-row justify-between items-center gap-4">
+                <!-- Logo -->
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 bg-gradient-to-r from-orange-500 to-red-500 rounded-lg flex items-center justify-center">
+                        <i class="fas fa-shopping-cart text-white text-xl"></i>
+                    </div>
+                    <div>
+                        <h1 class="text-2xl font-black text-gray-900">SimpleMart</h1>
+                        <p class="text-xs text-gray-500">Your One-Stop Marketplace</p>
+                    </div>
                 </div>
-                
-                <button onclick="toggleModal()" class="whitespace-nowrap bg-black text-white px-6 py-3 rounded-full font-bold flex items-center gap-2 hover:bg-gray-800 transition shadow-lg">
-                    <i class="fas fa-camera"></i> Sell
-                </button>
+
+                <!-- Search Bar -->
+                <div class="flex-1 max-w-2xl w-full">
+                    <div class="relative">
+                        <input type="text" id="searchInput" placeholder="Search for products, brands, and categories..." 
+                               class="w-full p-3 pl-12 rounded-lg border border-gray-300 focus:border-orange-500 focus:ring-2 focus:ring-orange-100 outline-none shadow-sm">
+                        <i class="fas fa-search absolute left-4 top-3.5 text-gray-400"></i>
+                        <button onclick="searchProducts()" class="absolute right-2 top-2 bg-orange-500 text-white px-4 py-2 rounded-md hover:bg-orange-600 transition-colors">
+                            Search
+                        </button>
+                    </div>
+                </div>
+
+                <!-- User Actions -->
+                <div class="flex items-center gap-4">
+                    <button onclick="toggleSellModal()" class="hidden md:flex items-center gap-2 bg-gradient-to-r from-orange-500 to-red-500 text-white px-5 py-2.5 rounded-lg font-bold hover:shadow-lg transition-all">
+                        <i class="fas fa-plus"></i> Sell Now
+                    </button>
+                    
+                    <div class="relative dropdown">
+                        <button class="flex items-center gap-2 text-gray-700 hover:text-orange-500">
+                            <i class="fas fa-user-circle text-2xl"></i>
+                            <span class="hidden md:inline">Account</span>
+                            <i class="fas fa-chevron-down text-xs"></i>
+                        </button>
+                        <div class="dropdown-menu absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-xl border border-gray-100 py-2 z-50">
+                            <a href="#" class="block px-4 py-2 hover:bg-gray-50"><i class="fas fa-shopping-bag mr-2"></i> My Orders</a>
+                            <a href="#" class="block px-4 py-2 hover:bg-gray-50"><i class="fas fa-heart mr-2"></i> Wishlist</a>
+                            <a href="#" class="block px-4 py-2 hover:bg-gray-50"><i class="fas fa-cog mr-2"></i> Settings</a>
+                            <hr class="my-2">
+                            <a href="#" class="block px-4 py-2 hover:bg-gray-50 text-red-500"><i class="fas fa-sign-out-alt mr-2"></i> Logout</a>
+                        </div>
+                    </div>
+                    
+                    <a href="#" class="relative">
+                        <i class="fas fa-shopping-cart text-2xl text-gray-700 hover:text-orange-500"></i>
+                        <span class="absolute -top-2 -right-2 bg-orange-500 text-white text-xs w-5 h-5 rounded-full flex items-center justify-center">3</span>
+                    </a>
+                </div>
             </div>
         </div>
     </header>
 
-    <div class="max-w-6xl mx-auto px-4 py-4">
-        <p class="text-gray-500 text-sm"><span id="itemCount" class="font-bold text-gray-800">0</span> items for sale nearby</p>
+    <!-- Categories Bar -->
+    <div class="bg-white border-b border-gray-200">
+        <div class="max-w-7xl mx-auto px-4 py-3">
+            <div class="flex items-center gap-6 overflow-x-auto scrollbar-hide">
+                <button onclick="filterByCategory('all')" class="category-btn flex flex-col items-center px-3 py-2 text-gray-600 hover:text-orange-500">
+                    <i class="fas fa-th-large text-xl mb-1"></i>
+                    <span class="text-xs font-medium">All</span>
+                </button>
+                
+                <button onclick="filterByCategory('electronics')" class="category-btn flex flex-col items-center px-3 py-2 text-gray-600 hover:text-orange-500">
+                    <i class="fas fa-laptop text-xl mb-1"></i>
+                    <span class="text-xs font-medium">Electronics</span>
+                </button>
+                
+                <button onclick="filterByCategory('fashion')" class="category-btn flex flex-col items-center px-3 py-2 text-gray-600 hover:text-orange-500">
+                    <i class="fas fa-tshirt text-xl mb-1"></i>
+                    <span class="text-xs font-medium">Fashion</span>
+                </button>
+                
+                <button onclick="filterByCategory('home')" class="category-btn flex flex-col items-center px-3 py-2 text-gray-600 hover:text-orange-500">
+                    <i class="fas fa-home text-xl mb-1"></i>
+                    <span class="text-xs font-medium">Home</span>
+                </button>
+                
+                <button onclick="filterByCategory('phones')" class="category-btn flex flex-col items-center px-3 py-2 text-gray-600 hover:text-orange-500">
+                    <i class="fas fa-mobile-alt text-xl mb-1"></i>
+                    <span class="text-xs font-medium">Phones</span>
+                </button>
+                
+                <button onclick="filterByCategory('sports')" class="category-btn flex flex-col items-center px-3 py-2 text-gray-600 hover:text-orange-500">
+                    <i class="fas fa-basketball-ball text-xl mb-1"></i>
+                    <span class="text-xs font-medium">Sports</span>
+                </button>
+                
+                <button onclick="filterByCategory('beauty')" class="category-btn flex flex-col items-center px-3 py-2 text-gray-600 hover:text-orange-500">
+                    <i class="fas fa-spa text-xl mb-1"></i>
+                    <span class="text-xs font-medium">Beauty</span>
+                </button>
+                
+                <button onclick="filterByCategory('vehicles')" class="category-btn flex flex-col items-center px-3 py-2 text-gray-600 hover:text-orange-500">
+                    <i class="fas fa-car text-xl mb-1"></i>
+                    <span class="text-xs font-medium">Vehicles</span>
+                </button>
+            </div>
+        </div>
     </div>
 
-    <main id="productGrid" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6 p-4 max-w-6xl mx-auto">
-        <div class="bg-gray-200 h-80 rounded-2xl animate-pulse"></div>
-        <div class="bg-gray-200 h-80 rounded-2xl animate-pulse hidden sm:block"></div>
+    <!-- Hero Banner -->
+    <section class="max-w-7xl mx-auto px-4 py-6">
+        <div class="hero-gradient rounded-2xl p-8 text-white">
+            <div class="max-w-md">
+                <h2 class="text-3xl font-bold mb-3">Super Deals Week!</h2>
+                <p class="mb-6 text-lg">Up to 50% off on electronics, fashion, and more. Limited time offer!</p>
+                <button class="bg-white text-orange-500 px-6 py-3 rounded-lg font-bold hover:bg-gray-100 transition-colors">
+                    Shop Now <i class="fas fa-arrow-right ml-2"></i>
+                </button>
+            </div>
+        </div>
+    </section>
+
+    <!-- Featured Categories -->
+    <section class="max-w-7xl mx-auto px-4 py-8">
+        <div class="flex justify-between items-center mb-6">
+            <h3 class="text-2xl font-bold text-gray-800">Shop by Category</h3>
+            <a href="#" class="text-orange-500 font-medium hover:underline">View all</a>
+        </div>
+        
+        <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
+            <div class="category-card bg-white p-6 rounded-xl shadow-sm text-center hover:shadow-md cursor-pointer">
+                <div class="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-3">
+                    <i class="fas fa-laptop text-blue-500 text-2xl"></i>
+                </div>
+                <h4 class="font-semibold">Laptops</h4>
+                <p class="text-sm text-gray-500 mt-1">200+ products</p>
+            </div>
+            
+            <div class="category-card bg-white p-6 rounded-xl shadow-sm text-center hover:shadow-md cursor-pointer">
+                <div class="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-3">
+                    <i class="fas fa-mobile-alt text-red-500 text-2xl"></i>
+                </div>
+                <h4 class="font-semibold">Phones</h4>
+                <p class="text-sm text-gray-500 mt-1">150+ products</p>
+            </div>
+            
+            <div class="category-card bg-white p-6 rounded-xl shadow-sm text-center hover:shadow-md cursor-pointer">
+                <div class="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-3">
+                    <i class="fas fa-tshirt text-green-500 text-2xl"></i>
+                </div>
+                <h4 class="font-semibold">Fashion</h4>
+                <p class="text-sm text-gray-500 mt-1">300+ products</p>
+            </div>
+            
+            <div class="category-card bg-white p-6 rounded-xl shadow-sm text-center hover:shadow-md cursor-pointer">
+                <div class="w-16 h-16 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-3">
+                    <i class="fas fa-home text-purple-500 text-2xl"></i>
+                </div>
+                <h4 class="font-semibold">Home</h4>
+                <p class="text-sm text-gray-500 mt-1">180+ products</p>
+            </div>
+            
+            <div class="category-card bg-white p-6 rounded-xl shadow-sm text-center hover:shadow-md cursor-pointer">
+                <div class="w-16 h-16 bg-yellow-100 rounded-full flex items-center justify-center mx-auto mb-3">
+                    <i class="fas fa-dumbbell text-yellow-500 text-2xl"></i>
+                </div>
+                <h4 class="font-semibold">Sports</h4>
+                <p class="text-sm text-gray-500 mt-1">120+ products</p>
+            </div>
+            
+            <div class="category-card bg-white p-6 rounded-xl shadow-sm text-center hover:shadow-md cursor-pointer">
+                <div class="w-16 h-16 bg-pink-100 rounded-full flex items-center justify-center mx-auto mb-3">
+                    <i class="fas fa-heart text-pink-500 text-2xl"></i>
+                </div>
+                <h4 class="font-semibold">Beauty</h4>
+                <p class="text-sm text-gray-500 mt-1">90+ products</p>
+            </div>
+        </div>
+    </section>
+
+    <!-- Products Section -->
+    <main class="max-w-7xl mx-auto px-4 py-6">
+        <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
+            <div>
+                <h3 class="text-2xl font-bold text-gray-800">Featured Products</h3>
+                <p class="text-gray-600">Quality products from trusted sellers</p>
+            </div>
+            
+            <div class="flex items-center gap-3">
+                <select id="sortSelect" onchange="sortProducts()" class="bg-white border border-gray-300 rounded-lg px-4 py-2 outline-none focus:border-orange-500">
+                    <option value="newest">Newest First</option>
+                    <option value="price_low">Price: Low to High</option>
+                    <option value="price_high">Price: High to Low</option>
+                    <option value="popular">Most Popular</option>
+                </select>
+                
+                <select id="filterSelect" onchange="filterProducts()" class="bg-white border border-gray-300 rounded-lg px-4 py-2 outline-none focus:border-orange-500">
+                    <option value="all">All Products</option>
+                    <option value="electronics">Electronics</option>
+                    <option value="fashion">Fashion</option>
+                    <option value="home">Home & Garden</option>
+                </select>
+            </div>
+        </div>
+
+        <!-- Products Grid -->
+        <div id="productGrid" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+            <!-- Skeleton Loading -->
+            <div class="skeleton rounded-xl h-80"></div>
+            <div class="skeleton rounded-xl h-80"></div>
+            <div class="skeleton rounded-xl h-80 hidden md:block"></div>
+            <div class="skeleton rounded-xl h-80 hidden lg:block"></div>
+        </div>
+
+        <!-- Load More -->
+        <div class="text-center mt-12">
+            <button onclick="loadMoreProducts()" id="loadMoreBtn" class="bg-white border-2 border-orange-500 text-orange-500 px-8 py-3 rounded-lg font-bold hover:bg-orange-50 transition-colors">
+                Load More Products
+            </button>
+        </div>
     </main>
 
-    <div id="sellModal" class="hidden fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-        <div class="bg-white rounded-3xl p-6 w-full max-w-md shadow-2xl relative animate-[fadeIn_0.3s_ease-out]">
-            <button onclick="toggleModal()" class="absolute top-4 right-4 w-8 h-8 rounded-full bg-gray-100 hover:bg-gray-200 flex items-center justify-center">
-                <i class="fas fa-times"></i>
-            </button>
-            
-            <h2 class="text-2xl font-black text-gray-900 mb-1">Sell an Item</h2>
-            <p class="text-gray-500 text-sm mb-6">Upload a photo and details.</p>
-            
-            <form id="sellForm" class="space-y-4">
-                <input type="text" id="pName" placeholder="Product Name (e.g. iPhone 12)" class="w-full p-4 bg-gray-50 border rounded-xl outline-none focus:border-green-500" required>
-                
-                <div class="grid grid-cols-2 gap-3">
-                    <input type="text" id="pPrice" placeholder="Price" class="w-full p-4 bg-gray-50 border rounded-xl outline-none focus:border-green-500" required>
-                    <input type="text" id="pPhone" placeholder="Phone No." class="w-full p-4 bg-gray-50 border rounded-xl outline-none focus:border-green-500" required>
+    <!-- Footer -->
+    <footer class="bg-gray-900 text-white mt-16">
+        <div class="max-w-7xl mx-auto px-4 py-12">
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-8">
+                <div>
+                    <div class="flex items-center gap-3 mb-4">
+                        <div class="w-10 h-10 bg-gradient-to-r from-orange-500 to-red-500 rounded-lg flex items-center justify-center">
+                            <i class="fas fa-shopping-cart text-white"></i>
+                        </div>
+                        <h3 class="text-xl font-bold">SimpleMart</h3>
+                    </div>
+                    <p class="text-gray-400">Your trusted online marketplace. Buy & sell everything from electronics to vehicles.</p>
                 </div>
                 
-                <div class="border-2 border-dashed border-gray-300 p-6 rounded-xl text-center cursor-pointer hover:bg-gray-50 relative group">
-                    <input type="file" id="pContextMenu" accept="image/*" class="absolute inset-0 opacity-0 cursor-pointer z-10" onchange="previewImage(this)" required>
-                    <div id="uploadText" class="text-gray-400 group-hover:text-green-600 transition">
-                        <i class="fas fa-cloud-upload-alt text-3xl mb-2"></i>
-                        <p class="text-sm font-bold">Tap to Upload Photo</p>
+                <div>
+                    <h4 class="font-bold text-lg mb-4">Quick Links</h4>
+                    <ul class="space-y-2">
+                        <li><a href="#" class="text-gray-400 hover:text-white">About Us</a></li>
+                        <li><a href="#" class="text-gray-400 hover:text-white">Contact Us</a></li>
+                        <li><a href="#" class="text-gray-400 hover:text-white">FAQs</a></li>
+                        <li><a href="#" class="text-gray-400 hover:text-white">Privacy Policy</a></li>
+                    </ul>
+                </div>
+                
+                <div>
+                    <h4 class="font-bold text-lg mb-4">Customer Service</h4>
+                    <ul class="space-y-2">
+                        <li><a href="#" class="text-gray-400 hover:text-white">Help Center</a></li>
+                        <li><a href="#" class="text-gray-400 hover:text-white">How to Buy</a></li>
+                        <li><a href="#" class="text-gray-400 hover:text-white">Shipping & Delivery</a></li>
+                        <li><a href="#" class="text-gray-400 hover:text-white">Return Policy</a></li>
+                    </ul>
+                </div>
+                
+                <div>
+                    <h4 class="font-bold text-lg mb-4">Stay Connected</h4>
+                    <p class="text-gray-400 mb-4">Subscribe to our newsletter</p>
+                    <div class="flex">
+                        <input type="email" placeholder="Your email" class="flex-1 p-3 rounded-l-lg text-gray-900 outline-none">
+                        <button class="bg-orange-500 px-4 rounded-r-lg hover:bg-orange-600">
+                            <i class="fas fa-paper-plane"></i>
+                        </button>
+                    </div>
+                    <div class="flex gap-4 mt-6">
+                        <a href="#" class="w-10 h-10 bg-gray-800 rounded-full flex items-center justify-center hover:bg-gray-700">
+                            <i class="fab fa-facebook-f"></i>
+                        </a>
+                        <a href="#" class="w-10 h-10 bg-gray-800 rounded-full flex items-center justify-center hover:bg-gray-700">
+                            <i class="fab fa-twitter"></i>
+                        </a>
+                        <a href="#" class="w-10 h-10 bg-gray-800 rounded-full flex items-center justify-center hover:bg-gray-700">
+                            <i class="fab fa-instagram"></i>
+                        </a>
+                        <a href="#" class="w-10 h-10 bg-gray-800 rounded-full flex items-center justify-center hover:bg-gray-700">
+                            <i class="fab fa-whatsapp"></i>
+                        </a>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="border-t border-gray-800 mt-8 pt-8 text-center text-gray-400">
+                <p>&copy; 2024 SimpleMart. All rights reserved.</p>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Sell Modal -->
+    <div id="sellModal" class="hidden fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+        <div class="bg-white rounded-2xl p-6 w-full max-w-md max-h-[90vh] overflow-y-auto">
+            <div class="flex justify-between items-center mb-6">
+                <h2 class="text-2xl font-bold text-gray-800">Sell Your Product</h2>
+                <button onclick="toggleSellModal()" class="w-10 h-10 rounded-full bg-gray-100 hover:bg-gray-200 flex items-center justify-center">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            
+            <form id="sellForm" class="space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Product Title *</label>
+                    <input type="text" id="pName" placeholder="e.g., iPhone 15 Pro Max 256GB" 
+                           class="w-full p-3 border border-gray-300 rounded-lg outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-100" required>
+                </div>
+                
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Category *</label>
+                    <select id="pCategory" class="w-full p-3 border border-gray-300 rounded-lg outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-100" required>
+                        <option value="">Select Category</option>
+                        <option value="electronics">Electronics</option>
+                        <option value="fashion">Fashion</option>
+                        <option value="home">Home & Garden</option>
+                        <option value="phones">Phones & Tablets</option>
+                        <option value="vehicles">Vehicles</option>
+                        <option value="sports">Sports</option>
+                        <option value="beauty">Health & Beauty</option>
+                        <option value="other">Other</option>
+                    </select>
+                </div>
+                
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Price ($) *</label>
+                        <input type="number" id="pPrice" placeholder="0.00" step="0.01" 
+                               class="w-full p-3 border border-gray-300 rounded-lg outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-100" required>
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Condition</label>
+                        <select id="pCondition" class="w-full p-3 border border-gray-300 rounded-lg outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-100">
+                            <option value="new">New</option>
+                            <option value="used">Used - Like New</option>
+                            <option value="good">Used - Good</option>
+                            <option value="fair">Used - Fair</option>
+                        </select>
                     </div>
                 </div>
                 
-                <button type="submit" id="submitBtn" class="w-full bg-green-600 text-white font-bold py-4 rounded-xl shadow-lg hover:bg-green-700 transition transform active:scale-95">
-                    POST ITEM
-                </button>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Description</label>
+                    <textarea id="pDescription" rows="3" placeholder="Describe your product..." 
+                              class="w-full p-3 border border-gray-300 rounded-lg outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-100"></textarea>
+                </div>
+                
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Contact Number *</label>
+                    <input type="tel" id="pPhone" placeholder="+1 (234) 567-8900" 
+                           class="w-full p-3 border border-gray-300 rounded-lg outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-100" required>
+                </div>
+                
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Image URL</label>
+                    <input type="url" id="pImg" placeholder="https://example.com/image.jpg" 
+                           class="w-full p-3 border border-gray-300 rounded-lg outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-100">
+                    <p class="text-xs text-gray-500 mt-1">Paste direct image link (optional)</p>
+                </div>
+                
+                <div class="pt-4">
+                    <button type="submit" id="submitBtn" class="w-full bg-gradient-to-r from-orange-500 to-red-500 text-white font-bold py-3.5 rounded-lg hover:shadow-lg transition-all flex items-center justify-center gap-2">
+                        <i class="fas fa-upload"></i> LIST PRODUCT NOW
+                    </button>
+                </div>
             </form>
         </div>
     </div>
 
-    <div id="toast" class="hidden fixed bottom-5 right-5 bg-black text-white px-6 py-4 rounded-xl shadow-2xl flex items-center gap-3 z-50">
-        <i class="fas fa-check-circle text-green-400 text-xl"></i>
-        <div>
-            <p class="font-bold">Success!</p>
-            <p class="text-xs text-gray-400">Item is now live.</p>
+    <!-- Quick View Modal -->
+    <div id="quickViewModal" class="hidden fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+        <div class="bg-white rounded-2xl p-6 w-full max-w-4xl max-h-[90vh] overflow-y-auto">
+            <!-- Content will be loaded dynamically -->
         </div>
     </div>
 
     <script>
-        // --- SETUP ---
+        // Supabase Configuration
         const SUPABASE_URL = 'https://tuzkeogfbgwabfhmxiba.supabase.co';
         const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InR1emtlb2dmYmd3YWJmaG14aWJhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njg2NTc5NzcsImV4cCI6MjA4NDIzMzk3N30.nAMljfHjir0POHLP-f2NanhgmmXGPSH741NPrU5JxgY';
         const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-
-        // --- DEMO DATA (This makes the site look active!) ---
-        const DEMO_PRODUCTS = [
-            { name: "Toyota Corolla 2018", price: "$12,000", phone: "123", image_url: "https://images.unsplash.com/photo-1552519507-da3b142c6e3d?auto=format&fit=crop&w=500&q=80" },
-            { name: "Nike Air Jordan", price: "$150", phone: "123", image_url: "https://images.unsplash.com/photo-1542291026-7eec264c27ff?auto=format&fit=crop&w=500&q=80" },
-            { name: "Apple MacBook Pro", price: "$900", phone: "123", image_url: "https://images.unsplash.com/photo-1517336714731-489689fd1ca4?auto=format&fit=crop&w=500&q=80" },
-            { name: "Leather Watch", price: "$85", phone: "123", image_url: "https://images.unsplash.com/photo-1524592094714-0f0654e20314?auto=format&fit=crop&w=500&q=80" }
-        ];
-
+        
         let allProducts = [];
+        let currentPage = 1;
+        const itemsPerPage = 8;
+        let currentCategory = 'all';
 
+        // Initialize
+        document.addEventListener('DOMContentLoaded', async () => {
+            await loadProducts();
+            setupEventListeners();
+        });
+
+        // Load products from Supabase
         async function loadProducts() {
             try {
-                // 1. Try to get real products
-                const { data, error } = await supabase.from('products').select('*').order('created_at', { ascending: false });
-                
+                const { data, error } = await supabase
+                    .from('products')
+                    .select('*')
+                    .order('created_at', { ascending: false });
+                    
                 if (error) throw error;
-
-                // 2. If database is empty, use DEMO DATA
-                if (!data || data.length === 0) {
-                    allProducts = DEMO_PRODUCTS;
-                    document.getElementById('itemCount').innerText = "4 (Demo)";
-                } else {
-                    allProducts = data;
-                    document.getElementById('itemCount').innerText = data.length;
-                }
-
-                renderGrid();
-
-            } catch (err) {
-                console.log("Using demo data due to error or empty db");
-                allProducts = DEMO_PRODUCTS;
-                renderGrid();
+                
+                allProducts = data || [];
+                renderProducts();
+            } catch (error) {
+                console.error('Error loading products:', error);
+                showNotification('Error loading products', 'error');
             }
         }
 
-        function renderGrid() {
+        // Render products to grid
+        function renderProducts() {
             const grid = document.getElementById('productGrid');
-            grid.innerHTML = allProducts.map((item, i) => `
-                <div class="product-card bg-white rounded-2xl overflow-hidden border border-gray-100 flex flex-col h-full fade-in" style="animation-delay: ${i * 0.1}s">
-                    <div class="h-48 overflow-hidden relative bg-gray-100">
-                        <img src="${item.image_url}" class="w-full h-full object-cover">
-                        <div class="absolute top-3 right-3 shadow-md">
-                            <span class="price-tag text-white text-sm font-bold px-3 py-1 rounded-full">${item.price}</span>
+            const filteredProducts = filterProductsByCategory();
+            const startIndex = 0;
+            const endIndex = currentPage * itemsPerPage;
+            const productsToShow = filteredProducts.slice(startIndex, endIndex);
+            
+            if (productsToShow.length === 0) {
+                grid.innerHTML = `
+                    <div class="col-span-full text-center py-12">
+                        <div class="w-24 h-24 mx-auto mb-6 bg-gray-100 rounded-full flex items-center justify-center">
+                            <i class="fas fa-box-open text-4xl text-gray-400"></i>
                         </div>
+                        <h3 class="text-xl font-bold text-gray-700 mb-2">No products found</h3>
+                        <p class="text-gray-500 mb-6">Try changing your filters or be the first to list a product!</p>
+                        <button onclick="toggleSellModal()" class="bg-gradient-to-r from-orange-500 to-red-500 text-white px-6 py-3 rounded-lg font-bold">
+                            List Your Product
+                        </button>
                     </div>
-                    <div class="p-4 flex flex-col flex-grow">
-                        <h3 class="font-bold text-gray-800 text-lg mb-1 truncate">${item.name}</h3>
-                        <p class="text-xs text-gray-400 mb-4">Posted recently</p>
+                `;
+                return;
+            }
+            
+            grid.innerHTML = productsToShow.map(product => `
+                <div class="product-card bg-white rounded-xl overflow-hidden shadow-md border border-gray-100">
+                    <div class="relative">
+                        <img src="${product.image_url || 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?ixlib=rb-4.0.3&auto=format&fit=crop&w=600&q=80'}" 
+                             alt="${product.name}" 
+                             class="w-full h-48 object-cover">
+                        ${product.category === 'electronics' ? 
+                            `<span class="absolute top-3 left-3 bg-blue-500 text-white text-xs font-bold px-2 py-1 rounded">Electronics</span>` : 
+                          product.category === 'fashion' ? 
+                            `<span class="absolute top-3 left-3 bg-pink-500 text-white text-xs font-bold px-2 py-1 rounded">Fashion</span>` : 
+                            `<span class="absolute top-3 left-3 bg-gray-500 text-white text-xs font-bold px-2 py-1 rounded">${product.category || 'General'}</span>`}
+                        ${product.condition === 'new' ? 
+                            `<span class="absolute top-3 right-3 bg-green-500 text-white text-xs font-bold px-2 py-1 rounded">New</span>` : ''}
+                    </div>
+                    
+                    <div class="p-4">
+                        <h3 class="font-bold text-gray-800 truncate mb-1">${product.name}</h3>
+                        <p class="text-gray-600 text-sm mb-3 truncate">${product.description || 'No description available'}</p>
                         
-                        <a href="https://wa.me/${item.phone}" target="_blank" class="mt-auto w-full bg-green-50 text-green-600 font-bold py-3 rounded-xl flex items-center justify-center gap-2 hover:bg-green-100 transition">
-                            <i class="fab fa-whatsapp text-xl"></i> Chat Seller
-                        </a>
+                        <div class="flex items-center justify-between mb-4">
+                            <div>
+                                <span class="text-xl font-bold text-orange-500">$${parseFloat(product.price || 0).toFixed(2)}</span>
+                                ${product.original_price ? 
+                                    `<span class="text-sm text-gray-500 line-through ml-2">$${parseFloat(product.original_price).toFixed(2)}</span>` : ''}
+                            </div>
+                            <div class="flex items-center">
+                                <i class="fas fa-star text-yellow-400 text-sm"></i>
+                                <span class="text-sm text-gray-600 ml-1">${(Math.random() * 2 + 3).toFixed(1)}</span>
+                            </div>
+                        </div>
+                        
+                        <div class="flex gap-2">
+                            <a href="https://wa.me/${product.phone}" target="_blank" 
+                               class="flex-1 bg-gradient-to-r from-green-500 to-emerald-600 text-white text-center py-2.5 rounded-lg font-medium text-sm hover:shadow-md transition-all">
+                                <i class="fab fa-whatsapp mr-2"></i>Chat
+                            </a>
+                            <button onclick="showQuickView(${product.id})" 
+                                    class="bg-gray-100 text-gray-700 px-4 py-2.5 rounded-lg font-medium text-sm hover:bg-gray-200 transition-colors">
+                                <i class="fas fa-eye"></i>
+                            </button>
+                        </div>
                     </div>
                 </div>
             `).join('');
-        }
-
-        // --- UPLOAD & SELL LOGIC ---
-        function previewImage(input) {
-            if (input.files[0]) {
-                document.getElementById('uploadText').innerHTML = `
-                    <i class="fas fa-check-circle text-green-500 text-3xl mb-2"></i>
-                    <p class="text-green-600 font-bold">${input.files[0].name}</p>
-                `;
+            
+            // Show/hide load more button
+            const loadMoreBtn = document.getElementById('loadMoreBtn');
+            if (endIndex >= filteredProducts.length) {
+                loadMoreBtn.classList.add('hidden');
+            } else {
+                loadMoreBtn.classList.remove('hidden');
             }
         }
 
+        // Filter by category
+        function filterByCategory(category) {
+            currentCategory = category;
+            currentPage = 1;
+            
+            // Update active category button
+            document.querySelectorAll('.category-btn').forEach(btn => {
+                btn.classList.remove('text-orange-500', 'border-b-2', 'border-orange-500');
+            });
+            event.currentTarget.classList.add('text-orange-500', 'border-b-2', 'border-orange-500');
+            
+            renderProducts();
+        }
+
+        // Filter products by current category
+        function filterProductsByCategory() {
+            if (currentCategory === 'all') return allProducts;
+            return allProducts.filter(product => 
+                (product.category || '').toLowerCase().includes(currentCategory.toLowerCase()) ||
+                (product.name || '').toLowerCase().includes(currentCategory.toLowerCase())
+            );
+        }
+
+        // Sort products
+        function sortProducts() {
+            const sortValue = document.getElementById('sortSelect').value;
+            
+            switch(sortValue) {
+                case 'price_low':
+                    allProducts.sort((a, b) => parseFloat(a.price || 0) - parseFloat(b.price || 0));
+                    break;
+                case 'price_high':
+                    allProducts.sort((a, b) => parseFloat(b.price || 0) - parseFloat(a.price || 0));
+                    break;
+                case 'popular':
+                    // Simulate popularity (in real app, you'd have a view count or sales count)
+                    allProducts.sort(() => Math.random() - 0.5);
+                    break;
+                default:
+                    allProducts.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+            }
+            
+            renderProducts();
+        }
+
+        // Search products
+        function searchProducts() {
+            const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+            
+            if (searchTerm.trim() === '') {
+                renderProducts();
+                return;
+            }
+            
+            const filtered = allProducts.filter(product => 
+                (product.name || '').toLowerCase().includes(searchTerm) ||
+                (product.description || '').toLowerCase().includes(searchTerm) ||
+                (product.category || '').toLowerCase().includes(searchTerm)
+            );
+            
+            // Temporarily override the products shown
+            const grid = document.getElementById('productGrid');
+            if (filtered.length === 0) {
+                grid.innerHTML = `
+                    <div class="col-span-full text-center py-12">
+                        <div class="w-24 h-24 mx-auto mb-6 bg-gray-100 rounded-full flex items-center justify-center">
+                            <i class="fas fa-search text-4xl text-gray-400"></i>
+                        </div>
+                        <h3 class="text-xl font-bold text-gray-700 mb-2">No results found</h3>
+                        <p class="text-gray-500">Try different keywords</p>
+                    </div>
+                `;
+            } else {
+                // Render search results
+                grid.innerHTML = filtered.map(product => `
+                    <div class="product-card bg-white rounded-xl overflow-hidden shadow-md border border-gray-100">
+                        <img src="${product.image_url || 'https://via.placeholder.com/300'}" 
+                             alt="${product.name}" 
+                             class="w-full h-48 object-cover">
+                        <div class="p-4">
+                            <h3 class="font-bold text-gray-800 truncate">${product.name}</h3>
+                            <p class="text-orange-500 font-bold text-lg my-2">$${parseFloat(product.price || 0).toFixed(2)}</p>
+                            <a href="https://wa.me/${product.phone}" target="_blank" 
+                               class="block w-full bg-gradient-to-r from-green-500 to-emerald-600 text-white text-center py-2.5 rounded-lg font-medium text-sm hover:shadow-md transition-all">
+                                <i class="fab fa-whatsapp mr-2"></i>Contact Seller
+                            </a>
+                        </div>
+                    </div>
+                `).join('');
+            }
+        }
+
+        // Load more products
+        function loadMoreProducts() {
+            currentPage++;
+            renderProducts();
+        }
+
+        // Toggle sell modal
+        function toggleSellModal() {
+            const modal = document.getElementById('sellModal');
+            modal.classList.toggle('hidden');
+        }
+
+        // Show quick view modal
+        async function showQuickView(productId) {
+            const product = allProducts.find(p => p.id === productId);
+            if (!product) return;
+            
+            const modal = document.getElementById('quickViewModal');
+            const modalContent = modal.querySelector('div');
+            
+            modalContent.innerHTML = `
+                <div class="grid md:grid-cols-2 gap-8">
+                    <div>
+                        <img src="${product.image_url || 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80'}" 
+                             alt="${product.name}" 
+                             class="w-full rounded-xl">
+                    </div>
+                    <div>
+                        <h2 class="text-2xl font-bold text-gray-800 mb-2">${product.name}</h2>
+                        <div class="flex items-center gap-4 mb-4">
+                            <span class="text-3xl font-bold text-orange-500">$${parseFloat(product.price || 0).toFixed(2)}</span>
+                            <span class="bg-green-100 text-green-800 text-sm font-medium px-3 py-1 rounded-full">${product.condition || 'New'}</span>
+                        </div>
+                        
+                        <div class="mb-6">
+                            <h4 class="font-bold text-gray-700 mb-2">Description</h4>
+                            <p class="text-gray-600">${product.description || 'No description provided.'}</p>
+                        </div>
+                        
+                        <div class="space-y-3 mb-8">
+                            <div class="flex items-center">
+                                <i class="fas fa-tag text-gray-400 w-6"></i>
+                                <span class="text-gray-600 ml-3">Category: <span class="font-medium">${product.category || 'General'}</span></span>
+                            </div>
+                            <div class="flex items-center">
+                                <i class="fas fa-calendar text-gray-400 w-6"></i>
+                                <span class="text-gray-600 ml-3">Posted: ${formatDate(product.created_at)}</span>
+                            </div>
+                        </div>
+                        
+                        <div class="flex gap-3">
+                            <a href="https://wa.me/${product.phone}" target="_blank" 
+                               class="flex-1 bg-gradient-to-r from-green-500 to-emerald-600 text-white text-center py-3 rounded-lg font-bold hover:shadow-lg transition-all flex items-center justify-center gap-2">
+                                <i class="fab fa-whatsapp"></i> Contact Seller
+                            </a>
+                            <button onclick="toggleSellModal()" class="bg-gradient-to-r from-orange-500 to-red-500 text-white px-6 py-3 rounded-lg font-bold hover:shadow-lg transition-all">
+                                <i class="fas fa-plus mr-2"></i> Sell Similar
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            modal.classList.remove('hidden');
+        }
+
+        // Submit sell form
         document.getElementById('sellForm').onsubmit = async (e) => {
             e.preventDefault();
             const btn = document.getElementById('submitBtn');
             const originalText = btn.innerHTML;
-            btn.innerHTML = '<i class="fas fa-circle-notch fa-spin"></i> UPLOADING...';
+            
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> LISTING...';
             btn.disabled = true;
-
+            
+            const newProduct = {
+                name: document.getElementById('pName').value.trim(),
+                category: document.getElementById('pCategory').value,
+                price: parseFloat(document.getElementById('pPrice').value) || 0,
+                condition: document.getElementById('pCondition').value,
+                description: document.getElementById('pDescription').value.trim(),
+                phone: document.getElementById('pPhone').value.trim().replace(/\D/g, ''),
+                image_url: document.getElementById('pImg').value.trim() || null,
+                created_at: new Date().toISOString()
+            };
+            
             try {
-                const file = document.getElementById('pContextMenu').files[0];
-                if (!file) throw new Error("Please pick a photo!");
-
-                // A. Upload Image
-                const fileName = `${Date.now()}-${file.name.replace(/[^a-zA-Z0-9.]/g, '')}`;
-                const { error: uploadError } = await supabase.storage.from('product-images').upload(fileName, file);
-                if (uploadError) throw uploadError;
-
-                // B. Get Link
-                const { data: urlData } = supabase.storage.from('product-images').getPublicUrl(fileName);
-
-                // C. Save Product
-                const newItem = {
-                    name: document.getElementById('pName').value,
-                    price: document.getElementById('pPrice').value,
-                    phone: document.getElementById('pPhone').value,
-                    image_url: urlData.publicUrl,
-                    created_at: new Date().toISOString()
-                };
-
-                const { error: dbError } = await supabase.from('products').insert([newItem]);
-                if (dbError) throw dbError;
-
-                // Success UI
-                document.getElementById('sellModal').classList.add('hidden');
-                document.getElementById('toast').classList.remove('hidden');
-                setTimeout(() => document.getElementById('toast').classList.add('hidden'), 3000);
+                const { error } = await supabase.from('products').insert([newProduct]);
                 
-                // Reload to show new item (Real data takes priority now)
-                loadProducts(); 
+                if (error) throw error;
+                
+                showNotification('Product listed successfully!', 'success');
+                toggleSellModal();
                 document.getElementById('sellForm').reset();
-
-            } catch (err) {
-                alert("Error: " + err.message);
+                
+                // Refresh products
+                await loadProducts();
+                
+            } catch (error) {
+                console.error('Error listing product:', error);
+                showNotification('Failed to list product', 'error');
             } finally {
                 btn.innerHTML = originalText;
                 btn.disabled = false;
             }
         };
 
-        // UI Helpers
-        function toggleModal() {
-            document.getElementById('sellModal').classList.toggle('hidden');
+        // Helper functions
+        function formatDate(dateString) {
+            if (!dateString) return 'Recently';
+            const date = new Date(dateString);
+            return date.toLocaleDateString('en-US', { 
+                month: 'short', 
+                day: 'numeric',
+                year: 'numeric'
+            });
         }
 
-        function filterItems() {
-            const input = document.getElementById('searchInput').value.toLowerCase();
-            const cards = document.getElementsByClassName('product-card');
-            for (let card of cards) {
-                card.style.display = card.innerText.toLowerCase().includes(input) ? "flex" : "none";
-            }
+        function showNotification(message, type = 'info') {
+            // Create toast notification
+            const toast = document.createElement('div');
+            toast.className = `fixed top-4 right-4 px-6 py-3 rounded-lg shadow-lg z-50 text-white ${
+                type === 'success' ? 'bg-green-500' : 
+                type === 'error' ? 'bg-red-500' : 
+                'bg-blue-500'
+            }`;
+            toast.innerHTML = `
+                <div class="flex items-center gap-3">
+                    <i class="fas fa-${type === 'success' ? 'check-circle' : type === 'error' ? 'exclamation-circle' : 'info-circle'}"></i>
+                    <span>${message}</span>
+                </div>
+            `;
+            
+            document.body.appendChild(toast);
+            
+            setTimeout(() => {
+                toast.remove();
+            }, 3000);
         }
 
-        loadProducts();
+        function setupEventListeners() {
+            // Close modals on ESC
+            document.addEventListener('keydown', (e) => {
+                if (e.key === 'Escape') {
+                    document.getElementById('sellModal').classList.add('hidden');
+                    document.getElementById('quickViewModal').classList.add('hidden');
+                }
+            });
+            
+            // Close modals on outside click
+            document.getElementById('sellModal').addEventListener('click', (e) => {
+                if (e.target.id === 'sellModal') toggleSellModal();
+            });
+            
+            document.getElementById('quickViewModal').addEventListener('click', (e) => {
+                if (e.target.id === 'quickViewModal') {
+                    document.getElementById('quickViewModal').classList.add('hidden');
+                }
+            });
+        }
     </script>
 </body>
 </html>
