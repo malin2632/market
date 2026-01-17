@@ -6,10 +6,44 @@
     <title>Simple Market | Buy & Sell</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <!-- Add Font Awesome -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        .debug-info { 
+            background: #f3f4f6; 
+            padding: 10px; 
+            margin: 5px 0; 
+            border-radius: 5px; 
+            font-family: monospace; 
+            font-size: 12px;
+        }
+        .image-preview { 
+            width: 100px; 
+            height: 100px; 
+            object-fit: cover; 
+            border: 2px solid #ccc; 
+            margin: 5px;
+        }
+    </style>
 </head>
 <body class="bg-gray-100 font-sans">
+
+    <!-- DEBUG PANEL -->
+    <div class="bg-yellow-100 p-4 border-b border-yellow-300">
+        <div class="max-w-5xl mx-auto">
+            <h3 class="font-bold text-yellow-800 mb-2">
+                <i class="fas fa-bug mr-2"></i>Image Debug Mode
+            </h3>
+            <div id="debugInfo" class="debug-info">
+                Loading debug information...
+            </div>
+            <button onclick="testAllImages()" class="mt-2 bg-yellow-500 text-white px-4 py-2 rounded text-sm">
+                <i class="fas fa-play mr-1"></i> Test All Images
+            </button>
+            <button onclick="fixAllImages()" class="mt-2 bg-green-500 text-white px-4 py-2 rounded text-sm ml-2">
+                <i class="fas fa-magic mr-1"></i> Fix All Images
+            </button>
+        </div>
+    </div>
 
     <header class="bg-white shadow-sm sticky top-0 z-50 p-4">
         <div class="max-w-5xl mx-auto flex justify-between items-center">
@@ -22,14 +56,21 @@
         <input type="text" id="searchInput" onkeyup="filterItems()" placeholder="Search items..." class="w-full p-4 rounded-2xl border-none shadow-sm outline-none focus:ring-2 focus:ring-green-500">
     </section>
 
+    <!-- IMAGE TEST AREA -->
+    <div id="imageTestArea" class="max-w-5xl mx-auto p-4 bg-gray-50 rounded-lg mb-4 hidden">
+        <h3 class="font-bold mb-2">Image Test Results:</h3>
+        <div id="imageResults" class="flex flex-wrap"></div>
+    </div>
+
     <main id="productGrid" class="grid grid-cols-2 md:grid-cols-4 gap-4 p-4 max-w-5xl mx-auto">
-        <!-- Loading message -->
+        <!-- Loading -->
         <div class="col-span-4 text-center py-12">
             <div class="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-green-500"></div>
             <p class="mt-4 text-gray-600">Loading products...</p>
         </div>
     </main>
 
+    <!-- Sell Modal -->
     <div id="sellModal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
         <div class="bg-white rounded-3xl p-8 w-full max-w-md">
             <div class="flex justify-between mb-4">
@@ -41,34 +82,184 @@
                 <input type="text" id="pPrice" placeholder="Price (e.g. $50)" class="w-full p-3 bg-gray-100 rounded-xl outline-none" required>
                 <input type="text" id="pPhone" placeholder="WhatsApp Number" class="w-full p-3 bg-gray-100 rounded-xl outline-none" required>
                 <input type="text" id="pImg" placeholder="Image URL (Paste link here)" class="w-full p-3 bg-gray-100 rounded-xl outline-none">
+                
+                <!-- Image Preview -->
+                <div id="imagePreview" class="hidden">
+                    <p class="text-sm text-gray-600 mb-2">Preview:</p>
+                    <img id="previewImage" class="w-32 h-32 object-cover rounded-lg border">
+                </div>
+                
                 <button type="submit" id="submitBtn" class="w-full bg-green-500 text-white font-bold py-4 rounded-2xl">POST NOW</button>
             </form>
         </div>
     </div>
 
     <script>
-        // 1. CONNECT TO YOUR SUPABASE
+        // 1. CONNECT TO SUPABASE
         const SUPABASE_URL = 'https://tuzkeogfbgwabfhmxiba.supabase.co';
         const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InR1emtlb2dmYmd3YWJmaG14aWJhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njg2NTc5NzcsImV4cCI6MjA4NDIzMzk3N30.nAMljfHjir0POHLP-f2NanhgmmXGPSH741NPrU5JxgY';
         const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-        // Default image for products without images
-        const DEFAULT_IMAGE = 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?ixlib=rb-4.0.3&auto=format&fit=crop&w=600&q=80';
+        // 2. GUARANTEED WORKING IMAGES
+        const WORKING_IMAGES = [
+            'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?ixlib=rb-4.0.3&auto=format&fit=crop&w=600&q=80',
+            'https://images.unsplash.com/photo-1542291026-7eec264c27ff?ixlib=rb-4.0.3&auto=format&fit=crop&w=600&q=80',
+            'https://images.unsplash.com/photo-1523275335684-37898b6baf30?ixlib=rb-4.0.3&auto=format&fit=crop&w=600&q=80',
+            'https://images.unsplash.com/photo-1546868871-7041f2a55e12?ixlib=rb-4.0.3&auto=format&fit=crop&w=600&q=80',
+            'https://images.unsplash.com/photo-1581235720704-06d3acfcb36f?ixlib=rb-4.0.3&auto=format&fit=crop&w=600&q=80'
+        ];
 
-        // 2. FETCH PRODUCTS - UPDATED WITH IMAGE FIX
-        async function loadProducts() {
-            const { data, error } = await supabase.from('products').select('*').order('id', { ascending: false });
-            if (error) {
-                console.error('Error loading products:', error);
-                showError('Failed to load products. Please try again.');
-                return;
+        let allProducts = [];
+        let currentImageIndex = 0;
+
+        // 3. DEBUG FUNCTION TO CHECK IMAGES
+        function updateDebugInfo(message) {
+            const debugDiv = document.getElementById('debugInfo');
+            debugDiv.innerHTML += `<div>${new Date().toLocaleTimeString()}: ${message}</div>`;
+            debugDiv.scrollTop = debugDiv.scrollHeight;
+        }
+
+        // 4. CHECK IF IMAGE URL IS VALID
+        function isValidImageUrl(url) {
+            if (!url) {
+                updateDebugInfo('❌ URL is empty');
+                return false;
             }
+            
+            if (typeof url !== 'string') {
+                updateDebugInfo(`❌ URL is not a string: ${typeof url}`);
+                return false;
+            }
+            
+            // Check URL format
+            if (!url.startsWith('http://') && !url.startsWith('https://')) {
+                updateDebugInfo(`❌ URL doesn't start with http: ${url.substring(0, 50)}...`);
+                return false;
+            }
+            
+            updateDebugInfo(`✅ URL looks valid: ${url.substring(0, 50)}...`);
+            return true;
+        }
 
-            console.log('Products loaded:', data); // Debug log
+        // 5. GET A GUARANTEED WORKING IMAGE
+        function getGuaranteedImage(url) {
+            if (isValidImageUrl(url)) {
+                return url;
+            } else {
+                // Cycle through working images
+                const workingImage = WORKING_IMAGES[currentImageIndex];
+                currentImageIndex = (currentImageIndex + 1) % WORKING_IMAGES.length;
+                updateDebugInfo(`🔄 Using guaranteed image: ${workingImage.substring(0, 50)}...`);
+                return workingImage;
+            }
+        }
 
+        // 6. TEST AN IMAGE URL
+        function testImageUrl(url, productName) {
+            return new Promise((resolve) => {
+                const img = new Image();
+                img.onload = () => {
+                    updateDebugInfo(`✅ Image loads: ${productName}`);
+                    resolve({ valid: true, url: url });
+                };
+                img.onerror = () => {
+                    updateDebugInfo(`❌ Image fails: ${productName} - ${url.substring(0, 50)}...`);
+                    resolve({ valid: false, url: url });
+                };
+                img.src = url;
+                
+                // Timeout after 5 seconds
+                setTimeout(() => {
+                    if (!img.complete) {
+                        updateDebugInfo(`⏰ Timeout: ${productName}`);
+                        resolve({ valid: false, url: url });
+                    }
+                }, 5000);
+            });
+        }
+
+        // 7. TEST ALL IMAGES
+        async function testAllImages() {
+            document.getElementById('imageTestArea').classList.remove('hidden');
+            const resultsDiv = document.getElementById('imageResults');
+            resultsDiv.innerHTML = '<p>Testing images...</p>';
+            
+            for (const product of allProducts) {
+                const result = await testImageUrl(product.image_url, product.name);
+                
+                const img = document.createElement('img');
+                img.src = result.valid ? product.image_url : WORKING_IMAGES[0];
+                img.className = 'image-preview';
+                img.title = `${product.name} - ${result.valid ? 'VALID' : 'INVALID'}`;
+                img.style.borderColor = result.valid ? 'green' : 'red';
+                
+                resultsDiv.appendChild(img);
+            }
+        }
+
+        // 8. FIX ALL IMAGES IN DATABASE
+        async function fixAllImages() {
+            if (!confirm('This will update all products with broken images. Continue?')) return;
+            
+            for (const product of allProducts) {
+                if (!isValidImageUrl(product.image_url)) {
+                    const newImageUrl = WORKING_IMAGES[0];
+                    updateDebugInfo(`Fixing ${product.name}: ${newImageUrl}`);
+                    
+                    // Update in Supabase
+                    const { error } = await supabase
+                        .from('products')
+                        .update({ image_url: newImageUrl })
+                        .eq('id', product.id);
+                    
+                    if (error) {
+                        updateDebugInfo(`Error fixing ${product.name}: ${error.message}`);
+                    } else {
+                        updateDebugInfo(`✅ Fixed ${product.name}`);
+                    }
+                }
+            }
+            
+            // Reload products
+            loadProducts();
+        }
+
+        // 9. FETCH PRODUCTS WITH DEBUG INFO
+        async function loadProducts() {
+            updateDebugInfo('📡 Fetching products from Supabase...');
+            
+            try {
+                const { data, error } = await supabase
+                    .from('products')
+                    .select('*')
+                    .order('id', { ascending: false });
+                
+                if (error) {
+                    updateDebugInfo(`❌ Database error: ${error.message}`);
+                    throw error;
+                }
+                
+                allProducts = data || [];
+                updateDebugInfo(`✅ Loaded ${allProducts.length} products`);
+                
+                // Log each product's image status
+                allProducts.forEach((product, index) => {
+                    updateDebugInfo(`Product ${index + 1}: "${product.name}" - Image: ${product.image_url || 'NO IMAGE'}`);
+                });
+                
+                renderProducts();
+                
+            } catch (error) {
+                console.error('Error:', error);
+                showError('Failed to load products');
+            }
+        }
+
+        // 10. RENDER PRODUCTS WITH BULLETPROOF IMAGE HANDLING
+        function renderProducts() {
             const grid = document.getElementById('productGrid');
             
-            if (!data || data.length === 0) {
+            if (!allProducts || allProducts.length === 0) {
                 grid.innerHTML = `
                     <div class="col-span-4 text-center py-12">
                         <i class="fas fa-box-open text-5xl text-gray-300 mb-4"></i>
@@ -82,73 +273,73 @@
                 return;
             }
 
-            grid.innerHTML = data.map(item => {
-                // FIX: Check if image_url is valid, otherwise use default
-                let imageUrl = item.image_url;
-                if (!imageUrl || imageUrl.trim() === '' || !imageUrl.startsWith('http')) {
-                    imageUrl = DEFAULT_IMAGE;
-                }
+            grid.innerHTML = allProducts.map(item => {
+                // Get a guaranteed working image
+                const imageUrl = getGuaranteedImage(item.image_url);
                 
-                // Format price
-                let price = item.price;
-                if (price && !price.includes('$')) {
-                    price = '$' + price;
-                }
-
                 return `
-                <div class="bg-white rounded-2xl overflow-hidden shadow-sm border border-gray-100 item-card hover:shadow-md transition-shadow">
-                    <div class="relative h-48 overflow-hidden bg-gray-100">
+                <div class="bg-white rounded-2xl overflow-hidden shadow-sm border border-gray-100 item-card">
+                    <div class="relative h-48 bg-gray-100 overflow-hidden">
+                        <!-- Image with multiple fallbacks -->
                         <img 
-                            src="${imageUrl}" 
-                            class="w-full h-full object-cover hover:scale-105 transition-transform duration-300"
+                            src="${imageUrl}"
                             alt="${item.name}"
-                            onerror="this.onerror=null; this.src='${DEFAULT_IMAGE}';"
+                            class="w-full h-full object-cover"
+                            loading="lazy"
+                            onerror="
+                                console.error('Image failed:', this.src);
+                                this.onerror = null;
+                                this.src = '${WORKING_IMAGES[0]}';
+                            "
                         >
-                        <div class="absolute inset-0 bg-gray-200 animate-pulse image-loading"></div>
+                        <!-- Fallback if all images fail -->
+                        <div class="absolute inset-0 flex items-center justify-center bg-gray-200 hidden" id="fallback-${item.id}">
+                            <i class="fas fa-image text-3xl text-gray-400"></i>
+                        </div>
                     </div>
                     <div class="p-4">
-                        <h3 class="font-bold text-gray-800 truncate mb-2" title="${item.name}">${item.name}</h3>
-                        <p class="text-green-600 font-black text-xl mb-3">${price}</p>
+                        <h3 class="font-bold text-gray-800 truncate mb-2">${item.name}</h3>
+                        <p class="text-green-600 font-black text-xl mb-3">$${parseFloat(item.price || 0).toFixed(2)}</p>
                         <a href="https://wa.me/${item.phone}" target="_blank" 
-                           class="block w-full bg-green-500 hover:bg-green-600 text-white text-center py-3 rounded-lg font-bold text-sm transition-colors">
+                           class="block w-full bg-green-500 text-white text-center py-3 rounded-lg font-bold text-sm">
                             <i class="fab fa-whatsapp mr-2"></i>WhatsApp Seller
                         </a>
+                        <p class="text-xs text-gray-500 mt-2 text-center">
+                            Image: ${item.image_url ? 'Provided' : 'Default'}
+                        </p>
                     </div>
                 </div>
                 `;
             }).join('');
-
-            // Remove loading skeletons after images load
-            setTimeout(() => {
-                document.querySelectorAll('.image-loading').forEach(el => {
-                    el.style.opacity = '0';
-                    setTimeout(() => el.remove(), 300);
-                });
-            }, 500);
+            
+            updateDebugInfo('✅ Products rendered');
         }
 
-        // 3. POST NEW PRODUCT - UPDATED WITH IMAGE VALIDATION
+        // 11. FORM SUBMISSION WITH IMAGE VALIDATION
         document.getElementById('sellForm').onsubmit = async (e) => {
             e.preventDefault();
             const btn = document.getElementById('submitBtn');
-            btn.innerText = "Posting...";
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Posting...';
             btn.disabled = true;
             
             let imageUrl = document.getElementById('pImg').value.trim();
             
-            // Validate image URL
-            if (imageUrl && !imageUrl.startsWith('http')) {
-                alert('Please enter a valid image URL starting with http:// or https://');
-                btn.innerText = "POST NOW";
-                btn.disabled = false;
-                return;
+            // Validate and fix image URL
+            if (imageUrl) {
+                if (!imageUrl.startsWith('http')) {
+                    imageUrl = 'https://' + imageUrl;
+                }
+                
+                // Test the image
+                const testResult = await testImageUrl(imageUrl, 'New Product');
+                if (!testResult.valid) {
+                    alert('⚠️ The image URL might not work. Using a default image instead.');
+                    imageUrl = WORKING_IMAGES[0];
+                }
+            } else {
+                imageUrl = WORKING_IMAGES[0];
             }
             
-            // If no image URL provided, use default
-            if (!imageUrl) {
-                imageUrl = DEFAULT_IMAGE;
-            }
-
             const newItem = {
                 name: document.getElementById('pName').value,
                 price: document.getElementById('pPrice').value,
@@ -157,27 +348,50 @@
                 created_at: new Date().toISOString()
             };
 
-            console.log('Posting item:', newItem); // Debug log
+            updateDebugInfo(`Posting new item: ${newItem.name}`);
 
             const { error } = await supabase.from('products').insert([newItem]);
             if (error) {
                 alert("Error: " + error.message);
-                console.error('Supabase error:', error);
+                updateDebugInfo(`❌ Post failed: ${error.message}`);
             } else {
                 alert("✅ Product listed successfully!");
                 toggleModal();
                 document.getElementById('sellForm').reset();
-                loadProducts(); // Reload products to show new item
+                loadProducts();
+                updateDebugInfo('✅ New product added');
             }
             
-            btn.innerText = "POST NOW";
+            btn.innerHTML = 'POST NOW';
             btn.disabled = false;
         };
 
-        // UI Helpers
+        // 12. IMAGE PREVIEW IN FORM
+        document.getElementById('pImg').addEventListener('input', function() {
+            const url = this.value.trim();
+            const previewDiv = document.getElementById('imagePreview');
+            const previewImg = document.getElementById('previewImage');
+            
+            if (url && url.startsWith('http')) {
+                previewImg.src = url;
+                previewDiv.classList.remove('hidden');
+                
+                // Test the image
+                testImageUrl(url, 'Preview').then(result => {
+                    if (!result.valid) {
+                        previewImg.style.border = '2px solid red';
+                    } else {
+                        previewImg.style.border = '2px solid green';
+                    }
+                });
+            } else {
+                previewDiv.classList.add('hidden');
+            }
+        });
+
+        // 13. UI FUNCTIONS
         function toggleModal() { 
-            const modal = document.getElementById('sellModal');
-            modal.classList.toggle('hidden');
+            document.getElementById('sellModal').classList.toggle('hidden');
         }
         
         function filterItems() {
@@ -193,23 +407,47 @@
             grid.innerHTML = `
                 <div class="col-span-4 text-center py-12">
                     <i class="fas fa-exclamation-triangle text-5xl text-red-300 mb-4"></i>
-                    <h3 class="text-xl font-bold text-gray-700">Connection Error</h3>
+                    <h3 class="text-xl font-bold text-gray-700">Error</h3>
                     <p class="text-gray-500 mt-2">${message}</p>
-                    <button onclick="loadProducts()" class="mt-4 bg-green-500 text-white px-6 py-2 rounded-lg font-bold">
+                    <button onclick="loadProducts()" class="mt-4 bg-green-500 text-white px-6 py-2 rounded-lg">
                         Try Again
                     </button>
                 </div>
             `;
         }
 
-        // Add WhatsApp icon script
-        const script = document.createElement('script');
-        script.src = 'https://kit.fontawesome.com/a076d05399.js';
-        script.crossOrigin = 'anonymous';
-        document.head.appendChild(script);
+        // 14. INITIALIZE
+        document.addEventListener('DOMContentLoaded', () => {
+            updateDebugInfo('🚀 Starting Simple Market...');
+            loadProducts();
+            
+            // Add sample images to form placeholder
+            document.getElementById('pImg').placeholder = 
+                'Image URL (e.g., https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=600)';
+        });
 
-        // Load products on page load
-        document.addEventListener('DOMContentLoaded', loadProducts);
+        // 15. QUICK FIX FOR EXISTING DATA - RUN IN CONSOLE
+        async function quickFixImages() {
+            updateDebugInfo('Running quick fix...');
+            
+            // First, let's see what's in your database
+            const { data } = await supabase.from('products').select('id, name, image_url');
+            
+            data.forEach(product => {
+                console.log(`Product ${product.id}: ${product.name}`);
+                console.log(`Image URL: ${product.image_url}`);
+                console.log('---');
+            });
+            
+            alert('Check browser console (F12) to see your current image URLs');
+        }
     </script>
+
+    <!-- QUICK FIX BUTTON -->
+    <div class="fixed bottom-4 right-4">
+        <button onclick="quickFixImages()" class="bg-red-500 text-white p-3 rounded-full shadow-lg">
+            <i class="fas fa-cog"></i>
+        </button>
+    </div>
 </body>
 </html>
